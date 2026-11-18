@@ -1,0 +1,6 @@
+{
+  "name": "Qasr-e-Noor Wedding Hall",
+  "description": "Premier luxury wedding and event venue in Mingora, Swat featuring separate Male (Darbar) & Female (Noor Mahal) halls, authentic Swati & Pakistani hospitality, and bespoke stage decor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
