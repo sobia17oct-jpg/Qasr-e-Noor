@@ -1,7 +1,11 @@
 import { Clock, MapPin, MessageCircle, Phone } from 'lucide-react';
 import { VENUE_CONTACT } from '../data/venueData';
 
-export default function Footer() {
+interface FooterProps {
+  onOpenAdmin?: () => void;
+}
+
+export default function Footer({ onOpenAdmin }: FooterProps) {
   const currentYear = new Date().getFullYear();
 
   return (
@@ -110,7 +114,23 @@ export default function Footer() {
           <p>
             &copy; {currentYear} {VENUE_CONTACT.brandEnglish}. All rights reserved.
           </p>
-          <p>Mingora, District Swat, Khyber Pakhtunkhwa</p>
+          <div className="flex items-center gap-4">
+            <span>Mingora, District Swat, Khyber Pakhtunkhwa</span>
+            {onOpenAdmin && (
+              <>
+                <span aria-hidden="true" className="text-[#d97706]/50">
+                  ·
+                </span>
+                <button
+                  type="button"
+                  onClick={onOpenAdmin}
+                  className="text-[#fef3c7]/80 hover:text-[#f59e0b] underline underline-offset-4 transition-colors cursor-pointer"
+                >
+                  Admin Portal
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </footer>

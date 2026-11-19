@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import AdminDashboard from './components/AdminDashboard';
 import AmenitiesGrid from './components/AmenitiesGrid';
 import { type BookingPrefill } from './components/BookingForm';
 import BookingModal from './components/BookingModal';
@@ -24,6 +25,41 @@ export default function App() {
     eventType: 'Barat',
   });
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [isAdminView, setIsAdminView] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.location.hash === '#admin' ||
+      new URLSearchParams(window.location.search).get('admin') === '1'
+    );
+  });
+
+  useEffect(() => {
+    const onHashChange = () => {
+      setIsAdminView(window.location.hash === '#admin');
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  const openAdminPortal = () => {
+    setIsAdminView(true);
+    if (window.location.hash !== '#admin') {
+      window.history.pushState(null, '', '#admin');
+    }
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  const closeAdminPortal = () => {
+    setIsAdminView(false);
+    if (window.location.hash === '#admin') {
+      window.history.pushState(null, '', window.location.pathname + window.location.search);
+    }
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  if (isAdminView) {
+    return <AdminDashboard onBackToSite={closeAdminPortal} />;
+  }
 
   const scrollToBookingSection = () => {
     const el = document.getElementById('booking');
@@ -82,7 +118,7 @@ export default function App() {
         <LocationMap />
       </main>
 
-      <Footer />
+      <Footer onOpenAdmin={openAdminPortal} />
 
       <FloatingWhatsAppButton />
 

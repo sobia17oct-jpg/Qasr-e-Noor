@@ -12,6 +12,8 @@ export const supabase: SupabaseClient = createClient(
   supabasePublishableKey
 );
 
+export type BookingStatus = 'pending' | 'confirmed' | 'cancelled';
+
 export interface BookingInquiryPayload {
   full_name: string;
   phone: string;
@@ -23,6 +25,25 @@ export interface BookingInquiryPayload {
   package_name: string;
   estimated_total_pkr: number;
   hall_preference: string;
+  status?: BookingStatus;
+  admin_notes?: string;
+}
+
+export interface BookingInquiryRecord {
+  id: string;
+  created_at: string;
+  full_name: string;
+  phone: string;
+  event_type: string;
+  preferred_date: string;
+  event_shift: 'Day / Lunch' | 'Night / Dinner';
+  estimated_guests: number;
+  package_id: 'silver' | 'gold' | 'royal';
+  package_name: string;
+  estimated_total_pkr: number;
+  hall_preference: string;
+  status: BookingStatus;
+  admin_notes?: string;
 }
 
 export interface BookedSlotInfo {
@@ -51,7 +72,7 @@ export interface InquiryLookupRecord {
   package_name: string;
   estimated_total_pkr: number;
   hall_preference: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
+  status: BookingStatus;
   created_at: string;
 }
 
@@ -136,5 +157,101 @@ export async function lookupBookingInquiry(
     };
   } catch {
     return { found: false, unavailable: true };
+  }
+}
+
+// --- Admin Operations (require authenticated Supabase session + RLS policies) ---
+
+export async function fetchAllBookingInquiries(): Promise<{
+  data: BookingInquiryRecord[];
+  error?: string;
+  missingSchema?: boolean;
+}> {
+  try {
+    const { data, error } = await supabase
+      .from('booking_inquiries')
+      .select('*')
+      .order('preferred_date', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      const missingSchema =
+        error.code === '42P01' ||
+        error.code === 'PGRST205' ||
+        error.message.toLowerCase().includes('booking_inquiries');
+      return { data: [], error: error.message, missingSchema };
+    }
+
+    return { data: (data ?? []) as BookingInquiryRecord[] };
+  } catch (err) {
+    return {
+      data: [],
+      error: err instanceof Error ? err.message : 'Unable to fetch booking inquiries.',
+    };
+  }
+}
+
+export async function updateBookingInquiry(
+  id: string,
+  updates: Partial<Pick<BookingInquiryRecord, 'status' | 'admin_notes'>>
+): Promise<{ data?: BookingInquiryRecord; error?: string }> {
+  try {
+    const { data, error } = await supabase
+      .from('booking_inquiries')
+      .update(updates)
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { data: data as BookingInquiryRecord };
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : 'Failed to update booking.',
+    };
+  }
+}
+
+export async function deleteBookingInquiry(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase.from('booking_inquiries').delete().eq('id', id);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Failed to delete booking.',
+    };
+  }
+}
+
+export async function createAdminBooking(
+  payload: BookingInquiryPayload
+): Promise<{ data?: BookingInquiryRecord; error?: string }> {
+  try {
+    const { data, error } = await supabase
+      .from('booking_inquiries')
+      .insert([payload])
+      .select('*')
+      .single();
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { data: data as BookingInquiryRecord };
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : 'Failed to create booking.',
+    };
   }
 }

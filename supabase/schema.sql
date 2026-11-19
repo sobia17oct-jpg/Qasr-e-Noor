@@ -1,4 +1,4 @@
--- Qasr-e-Noor Wedding Hall (Mingora, Swat) — Supabase Schema
+-- Qasr-e-Noor Wedding Hall (Mingora, Swat) — Supabase Schema & Admin Policies
 -- Run this script once in your Supabase Dashboard -> SQL Editor:
 -- https://supabase.com/dashboard/project/kgweeslcywiqrixzhxxt/sql/new
 
@@ -15,15 +15,20 @@ create table if not exists public.booking_inquiries (
   package_name text not null,
   estimated_total_pkr integer not null check (estimated_total_pkr > 0),
   hall_preference text not null,
-  status text not null default 'pending' check (status in ('pending', 'confirmed', 'cancelled'))
+  status text not null default 'pending' check (status in ('pending', 'confirmed', 'cancelled')),
+  admin_notes text not null default ''
 );
+
+-- Safely add admin_notes if the table already existed before this update
+alter table public.booking_inquiries
+  add column if not exists admin_notes text not null default '';
 
 create index if not exists idx_booking_inquiries_date_shift
   on public.booking_inquiries (preferred_date, event_shift, status);
 
 alter table public.booking_inquiries enable row level security;
 
--- Allow website visitors to submit booking inquiries
+-- 1. Allow public website visitors to submit booking inquiries
 drop policy if exists "Allow public booking inquiry inserts" on public.booking_inquiries;
 create policy "Allow public booking inquiry inserts"
   on public.booking_inquiries
@@ -31,7 +36,30 @@ create policy "Allow public booking inquiry inserts"
   to anon, authenticated
   with check (true);
 
--- Privacy-safe RPC to check confirmed/pending date & shift availability without exposing guest PII
+-- 2. Allow authenticated Admin users (created in Supabase Auth) to view, update, and delete bookings
+drop policy if exists "Allow authenticated admins to view bookings" on public.booking_inquiries;
+create policy "Allow authenticated admins to view bookings"
+  on public.booking_inquiries
+  for select
+  to authenticated
+  using (true);
+
+drop policy if exists "Allow authenticated admins to update bookings" on public.booking_inquiries;
+create policy "Allow authenticated admins to update bookings"
+  on public.booking_inquiries
+  for update
+  to authenticated
+  using (true)
+  with check (true);
+
+drop policy if exists "Allow authenticated admins to delete bookings" on public.booking_inquiries;
+create policy "Allow authenticated admins to delete bookings"
+  on public.booking_inquiries
+  for delete
+  to authenticated
+  using (true);
+
+-- 3. Privacy-safe RPC to check confirmed/pending date & shift availability without exposing guest PII
 create or replace function public.get_booked_slots(target_date date)
 returns table (
   event_shift text,
@@ -53,7 +81,7 @@ $$;
 
 grant execute on function public.get_booked_slots(date) to anon, authenticated;
 
--- Privacy-safe RPC allowing a guest to check their own inquiry status using Reference ID + Phone
+-- 4. Privacy-safe RPC allowing a guest to check their own inquiry status using Reference ID + Phone
 create or replace function public.lookup_booking_inquiry(
   ref_prefix text,
   phone_query text
